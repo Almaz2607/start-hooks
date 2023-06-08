@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { validator } from "../../../utils/validator";
 
@@ -11,18 +11,32 @@ const FormComponent = ({
     const [data, setData] = useState(defaultData || {});
     const [errors, setErrors] = useState({});
 
-    const handleChange = (target) => {
+    const handleChange = useCallback((target) => {
         setData((prevState) => ({
             ...prevState,
             [target.name]: target.value
         }));
-    };
+    }, []);
 
-    const validate = () => {
-        const errors = validator(data, validatorConfig);
-        setErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
+    const handleKeyDown = useCallback((event) => {
+        if (event.keyCode === 13) {
+            event.preventDefault();
+            const form = event.target.form;
+            console.log(form);
+            console.log(event.target);
+            const indexField = Array.prototype.indexOf.call(form, event.target);
+            form.elements[indexField + 1].focus();
+        }
+    }, []);
+
+    const validate = useCallback(
+        (data) => {
+            const errors = validator(data, validatorConfig);
+            setErrors(errors);
+            return Object.keys(errors).length === 0;
+        },
+        [validatorConfig, setErrors]
+    );
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -33,7 +47,7 @@ const FormComponent = ({
 
     useEffect(() => {
         if (Object.keys(data).length > 0) {
-            validate();
+            validate(data);
         }
     }, [data]);
 
@@ -43,7 +57,7 @@ const FormComponent = ({
         const childTypes = typeof child.type;
         let config = {};
 
-        if (childTypes === "function") {
+        if (childTypes === "object") {
             if (!child.props.name) {
                 throw new Error(
                     "Name propetry is required for field components",
@@ -54,7 +68,8 @@ const FormComponent = ({
                 ...child.props,
                 onChange: handleChange,
                 value: data[child.props.name] || "",
-                error: errors[child.props.name]
+                error: errors[child.props.name],
+                onKeyDown: handleKeyDown
             };
         }
         if (childTypes === "string") {
